@@ -1,6 +1,6 @@
 ---
 name: xbatis-skills
-description: 在已使用 xbatis，或用户明确要求接入 xbatis 的 Java 项目中实现、改写、审查或优化持久化代码时使用。支持 Spring Boot 与 Solon；本分支默认使用 BasicMapper 单 Mapper + Service，不生成 DAO。涵盖 Chain、分页、映射及框架特性，不用于直接连接数据库查询数据或自动迁移其他 ORM 项目。
+description: 在已使用 xbatis，或用户明确要求接入 xbatis 的 Java 项目中实现、改写、审查或优化持久化代码时使用。支持 Spring Boot 与 Solon；本分支默认使用 BasicMapper 单 Mapper + Service，不生成 DAO。涵盖 Chain、分页、映射、DDL SQL 生成及自动建表，不用于直接查询业务数据或自动迁移其他 ORM 项目。
 ---
 
 # Xbatis Skills
@@ -38,6 +38,7 @@ description: 在已使用 xbatis，或用户明确要求接入 xbatis 的 Java �
 | --- | --- |
 | 利用 IDEA 核验依赖/API、检查和编译 Java 改动、核对表结构 | [idea-workflow](references/idea-workflow.md) |
 | Spring Boot / Solon 依赖、数据源、扫描与 POJO 检查 | [environment-setup](references/environment-setup.md) |
+| DDL 依赖、实体/索引、SQL 生成与执行、模式、Solon 配置及限制 | [ddl](references/ddl.md) |
 | BasicMapper、Service 注入、事务边界及已有多 Mapper 项目 | [mapper-modes](references/mapper-modes.md) |
 | 实体、Model、内置 Mapper、局部更新、冲突写入 | [entity-and-mapper](references/entity-and-mapper.md) |
 | Chain、对象条件与结果映射注解 | [query-dsl](references/query-dsl.md) |
@@ -93,5 +94,6 @@ description: 在已使用 xbatis，或用户明确要求接入 xbatis 的 Java �
 - Solon 默认配置使用 `app.yml`，环境配置使用 `app-{env}.yml`；复用嵌套 YAML 等项目格式。
 - POJO 检查仅在已核实当前 starter 支持后配置；开发环境按项目约定开启，不能把校验开关当作运行时授权或租户隔离。
 - 不在示例中硬编码真实凭证；使用环境变量或项目约定的占位符。
+- DDL 任务先读 [DDL 指南](references/ddl.md)，区分离线 SQL、带连接差异计算和执行。当前 SYNC 会删列/索引，且带连接的 SQL 预览可能创建、删除类型探测表；不能当作严格只读操作或默认生产配置。
 - Java 代码修改后，IDEA 可用时先检查修改文件，再编译相关模块；仍须运行项目要求的 Maven / Gradle 构建和必要行为验证，IDEA 编译不能替代打包。涉及事务、分页、逻辑删除、租户隔离时验证对应行为。纯技能文档改动检查格式与引用，不触发业务项目编译。
 - 审查先报告数据正确性、事务、安全及编译问题，避免把本技能的默认偏好当作既有代码的缺陷。

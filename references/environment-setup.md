@@ -30,6 +30,7 @@ IDEA / JetBrains MCP 可用时，先按 [IDEA 工作流](idea-workflow.md) 获�
 - `xbatis-sql-api-impl`：数据库函数实现，核心入口是 `db.sql.api.impl.cmd.Methods`
 - `xbatis-core`：Mapper、链式 DSL、分页、租户、逻辑删除、MVC 支撑
 - `xbatis-bom` / `xbatis-parent`：依赖管理与父 POM
+- `xbatis-ddl-auto`：DDL SQL 生成与结构增量执行；与 core 分别版本管理，配置/API/模式详见 [DDL 指南](ddl.md)
 
 ## 全局配置
 
@@ -226,6 +227,7 @@ Solon 项目优先使用：
 
 - `xbatis-solon-plugin` 放在 `mybatis-solon-plugin` 前面
 - 保持项目兼容版本，按对应版本源码或官方 Solon 章节确认，不直接复制最新分支版本
+- MyBatis Solon 插件在 xbatis Solon 插件中是 optional，需显式声明；使用 Solon parent / BOM 时其版本优先沿用项目管理。需要 DDL 时还要显式加入 `xbatis-ddl-auto`，不能认为已传递安装，见 [DDL 指南](ddl.md)。
 - 仅项目已有或用户要求使用 Lombok 时增加依赖，版本沿用项目依赖管理
 
 ### app.yml 与环境配置

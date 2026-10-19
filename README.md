@@ -13,6 +13,7 @@
 - QueryChain / UpdateChain / InsertChain / DeleteChain 使用
 - 分页、搜索、联表、VO 映射、对象转条件、对象转排序
 - 逻辑删除、多租户、乐观锁、动态值、动态默认值
+- DDL 依赖、实体/索引、SQL 生成、增量模式与 Solon 自动建表，见 [完整 DDL 指南](references/ddl.md)
 - SQL 模板、原生 SQL、XML 回退边界判断
 - xbatis 代码审查和风格偏差排查
 

@@ -139,6 +139,8 @@
 
 ### DDL 与兼容注解
 
+完整依赖、注解、索引、SQL 预览/执行、Solon 配置及模式限制见 [DDL 使用指南](ddl.md)，不要只补列注解而遗漏容器接入和执行边界。
+
 - `@ColumnDefinition`
   - 用于列 DDL 元数据，例如长度、唯一性、nullable、precision、scale、definition、comment
   - 只有项目使用 xbatis 自动建表 / DDL 能力时才补，不要为了普通 ORM 映射机械添加
