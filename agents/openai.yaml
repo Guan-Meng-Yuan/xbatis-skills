@@ -1,7 +1,7 @@
 interface:
   display_name: "Xbatis AI Skill"
-  short_description: "面向 Agent 的专业 xbatis 编码与审查规则"
-  default_prompt: "Use $xbatis-skills to implement or review xbatis Java persistence code, preferring DAO and native xbatis patterns, verifying uncertain APIs from the project or local xbatis source, and reading only the relevant reference file for the task."
+  short_description: "使用 BasicMapper 与 Service 的 xbatis 编码和审查规则"
+  default_prompt: "Use $xbatis-skills to implement or review xbatis Java persistence code, using BasicMapper and Service without adding DAO layers, verifying APIs against the project dependency versions, and reading only the relevant reference file for the task."
 
 policy:
   allow_implicit_invocation: true

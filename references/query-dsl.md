@@ -2,7 +2,7 @@
 
 ## 链式 DSL 的真实类
 
-源码中的真实包名：
+以下包名仍需按项目依赖版本核验；本分支在 Service 中直接使用 BasicMapper，不增加 DAO 包装：
 
 - `cn.xbatis.core.sql.executor.chain.QueryChain`
 - `cn.xbatis.core.sql.executor.chain.InsertChain`
@@ -29,12 +29,12 @@ README 里有时写成 `cn.xbatis.core.chain.*`，生成代码时不要照抄那
 - 搜索接口默认 `.forSearch(true)`，自动忽略 `null`、空字符串并做 `trim`
 - 或直接使用条件重载：`eq(field, value, Objects::nonNull)`
 - `returnType(...)` 放在 `get` / `list` / `paging` 前
-- 对当前实体的简单查询尽量用省略写法
+- BasicMapper 的 Chain 显式传入实体类型；结果类型与主实体一致时再考虑省略 select / returnType
 
 典型省略写法：
 
 ```java
-SysUser user = QueryChain.of(sysUserMapper)
+SysUser user = QueryChain.of(xbatisMapper, SysUser.class)
         .eq(SysUser::getId, 1)
         .get();
 ```

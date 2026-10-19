@@ -14,10 +14,10 @@
 1. 先识别当前运行环境：Spring Boot 2 / 3 / 4，还是 Solon
 2. 已有项目优先跟随现有环境、已有 parent、已有 starter、已有数据源方案
 3. 不要在同一模块里同时生成 Spring Boot 和 Solon 两套接入代码
-4. 版本号优先以当前本地 xbatis 源码 README、官方文档或官网对应章节为准，不要凭空硬编码旧版本
-5. 先把容器、数据源、Mapper 扫描接起来，再生成实体、Mapper、DAO、Service
-6. 开发环境必须开启 xbatis POJO 安全检查；测试和生产环境不要求默认开启；不知道真实注解包名或配置项时，先查当前 starter 依赖和本地源码
-7. 无特殊要求时，项目必须集成 Lombok；实体、VO、QO、DTO、Model 优先使用 Lombok，字段常量按需使用 `@FieldNameConstants`
+4. 优先保持项目已解析的依赖版本；按各组件对应版本的 source JAR、tag / commit 核验 API，不用默认分支最新源码替代当前依赖
+5. 先把容器、数据源、Mapper 扫描接起来，再生成实体、统一 BasicMapper、Service
+6. 核实当前 starter 支持后，按项目要求在开发环境配置 POJO 检查；测试和生产环境不默认开启
+7. Lombok 为可选依赖，已有则复用；不为遵循技能默认值强制添加
 
 ## 模块总览
 
@@ -53,14 +53,14 @@
 
 ## 版本选择
 
-生成依赖时，优先按官方章节对应关系选版本：
+已有项目保持当前兼容版本，仅在明确接入或升级任务中按对应环境选择依赖；示例不能作为升级理由：
 
 - Spring Boot 2：`xbatis-spring-boot-parent` 的普通版本线
 - Spring Boot 3：`xbatis-spring-boot-parent` 的 `-spring-boot3` 版本线
 - Spring Boot 4：`xbatis-spring-boot-parent` 的 `-spring-boot4` 版本线
 - Solon：`xbatis-solon-plugin`
 
-不要把 skill 中写死的版本号当成永远正确。生成代码前，优先从以下来源确认当前版本：
+不要把 skill 示例版本或本地任意 checkout 的 README 当成当前依赖的依据。先识别构建文件和解析后的实际版本，再查看对应版本资料；无现有依赖的新项目才按容器版本评估兼容版本：
 
 - 本地 `xbatis-source/README.md`
 - 本地 `xbatis-source/README.zh-CN.md`
@@ -106,9 +106,9 @@ Spring Boot 项目优先使用：
 - Spring Boot 4 通常使用 `xbatis-spring-boot4-starter`
 - JDBC 驱动必须补，例如 `mysql-connector-j`
 - 连接池优先复用 Spring Boot 默认或项目现有方案；不要无故再引入另一套数据源实现
-- 无特殊要求时必须补 Lombok 依赖；版本优先交给 Spring Boot parent 或项目依赖管理，不要凭空硬编码
+- 仅项目已有或用户要求使用 Lombok 时增加依赖；版本跟随项目依赖管理
 
-Lombok 依赖示例：
+项目选择使用 Lombok 时的可选依赖示例：
 
 ```xml
 <dependency>
@@ -125,9 +125,9 @@ Lombok 依赖示例：
 ```yaml
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/demo
-    username: root
-    password: 123456
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
 ```
 
 只有项目已有显式 `DataSource` Bean 习惯，或需要特殊数据源能力时，才再生成 `@Bean DataSource`。
@@ -160,7 +160,7 @@ public class XbatisApplication {
 
 ### POJO 安全检查
 
-开发环境必须开启 xbatis POJO 安全检查，用于启动时检查 VO、Model、条件对象、排序对象的映射和注解缺口。
+当前 starter 支持且项目启用时，在开发环境配置 POJO 检查，检查 VO、Model、条件对象、排序对象的映射和注解缺口；不因缺少该可选能力升级依赖。
 
 Spring / Spring Boot 项目优先使用当前 starter 支持的 `@XbatisPojoCheckScan`：
 
@@ -223,51 +223,43 @@ Solon 项目优先使用：
 规则：
 
 - `xbatis-solon-plugin` 放在 `mybatis-solon-plugin` 前面
-- 版本号优先按本地源码或官方 solon 章节确认
-- 无特殊要求时必须补 Lombok 依赖；版本优先沿用项目依赖管理
+- 保持项目兼容版本，按对应版本源码或官方 Solon 章节确认，不直接复制最新分支版本
+- 仅项目已有或用户要求使用 Lombok 时增加依赖，版本沿用项目依赖管理
 
-### solon.yml 配置
+### app.yml 与环境配置
 
-优先生成：
+Solon 默认加载 `app.yml`，按 `solon.env` 加载 `app-{env}.yml`。复用项目现有配置及嵌套 YAML 格式，不新建未配置加载的 `solon.yml`。
+
+`app.yml` 中的数据源及 Mapper 示例：
 
 ```yaml
 ds:
-  schema: demo
-  jdbcUrl: jdbc:mysql://localhost:3306/demo?useUnicode=true&characterEncoding=utf8
+  jdbcUrl: ${DB_URL}
   driverClassName: com.mysql.cj.jdbc.Driver
-  username: root
-  password: 123456
+  username: ${DB_USERNAME}
+  password: ${DB_PASSWORD}
 
-mybatis.master:
-  pojoCheck:
-    basePackages: com.example
-  mappers:
-    - "com.example.mapper"
-    - "classpath:mapper/**/*.xml"
+mybatis:
+  master:
+    mappers:
+      - "com.example.mapper"
 ```
 
-或使用细分包路径方案：
+示例使用 MySQL 与下文 HikariDataSource Bean；仅在项目选择该方案时补齐对应 JDBC 驱动、连接池依赖及环境变量。项目已有数据源则沿用，不新增第二套。存在 XML 时再按需添加 XML 扫描路径。
+
+只有当前 starter 版本支持 POJO 检查时，再在开发环境配置 `app-dev.yml` 中声明，例如：
 
 ```yaml
-mybatis.master:
-  pojoCheck:
-    modelPackages: com.example.model
-    resultEntityPackages: com.example.vo
-    conditionTargetPackages: com.example.qo
-    orderByTargetPackages: com.example.qo
-  mappers:
-    - "com.example.mapper"
-    - "classpath:mapper/**/*.xml"
+mybatis:
+  master:
+    pojoCheck:
+      basePackages: com.example
 ```
 
-注意：
-
-- `mybatis.<数据源 bean 名称>` 要和数据源 Bean 名称对应
-- `mappers` 可放包路径，也可放 XML 路径
-- 开发环境必须配置 `pojoCheck`；多数据源项目要在 dev 配置中对应 `mybatis.<beanName>` 下配置
-- 测试和生产环境不要求默认配置 `pojoCheck`；除非项目明确要求，不要在 test/prod 配置里生成
-- `basePackages` 和其他细分包路径是二选一方案，不要在同一个 `pojoCheck` 中同时生成
-- `pojoCheck` 路径可按项目约定使用逗号分隔的多个包路径
+- 开发运行时按项目约定选择 `dev` 环境，例如 `--env=dev`，不要让生产配置默认加载开发检查。
+- 扫描范围二选一：`basePackages`，或当前版本支持的 `modelPackages` / `resultEntityPackages` / `conditionTargetPackages` / `orderByTargetPackages`；不叠加两套方案。
+- `mybatis.<数据源 bean 名称>` 与数据源 Bean 名称对应，多数据源逐个核验。
+- 生产 / 测试环境是否检查遵循项目要求，不因示例开启全环境扫描。
 
 ### DataSource Bean
 
@@ -301,8 +293,8 @@ Solon 中如果项目已把 Mapper 托管到容器：
 2. 生成或对齐 xbatis 依赖
 3. 生成或对齐 JDBC 驱动 / 数据源配置
 4. 生成启动类、容器配置类、`@MapperScan` 或 Solon Bean
-5. 生成 dev 环境的 xbatis POJO 安全检查配置
-6. 再生成 Mapper、BaseDao、业务 DAO、实体、QO、VO、Model
+5. 当前 starter 支持且项目启用时，生成 dev 环境的 xbatis POJO 检查配置
+6. 再生成统一 BasicMapper、Service、实体及按需使用的 QO、VO、Model，不生成 DAO / BaseDao
 
 ## 环境接入后的生成检查
 
@@ -314,8 +306,8 @@ Solon 中如果项目已把 Mapper 托管到容器：
 4. 数据源配置是否和容器风格一致
 5. `@MapperScan` 是否和单 Mapper / 多 Mapper 模式一致
 6. 是否没有同时混入另一套容器代码
-7. 项目 BaseDao 的 `setMapper(...)` 是否已经按当前容器使用自动注入注解，业务 DAO 子类是否不重复重写
-8. dev 环境是否已经开启 xbatis POJO 安全检查，并覆盖 VO、Model、QO、排序对象所在包；test/prod 是否避免默认开启
+7. Service 是否直接注入可用的统一 BasicMapper，是否避免新增 DAO / BaseDao
+8. 已启用的 dev POJO 检查是否覆盖实际使用的 POJO 包，test/prod 是否按项目要求配置
 
 ## 不推荐行为
 
@@ -324,5 +316,5 @@ Solon 中如果项目已把 Mapper 托管到容器：
 3. 在 Solon 项目里生成 Spring Boot 启动类
 4. 不核对版本线就硬编码旧版 `xbatis.version`
 5. 单 Mapper / 多 Mapper 还没判断，就先生成 `@MapperScan`
-6. 生成 xbatis 项目骨架却漏掉 dev 的 POJO 安全检查配置
+6. 项目已要求启用 POJO 检查，却漏掉对应 dev 配置
 7. 在项目未要求时，为 test/prod 默认开启 POJO 安全检查

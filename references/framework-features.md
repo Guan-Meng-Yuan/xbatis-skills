@@ -21,7 +21,7 @@
 
 - 使用逻辑删除注解，而不是手工写删除标记条件
 - 注意 `DeleteChain` 删除时逻辑删除不会生效
-- DAO 内部创建 `DeleteChain` 时使用 `deleteChain()` / `deleteChain(where)`
+- 物理删除场景在 Service 中使用与 BasicMapper 匹配、显式绑定实体类型的 `DeleteChain` 工厂
 - 可以通过全局拦截器补额外字段，例如删除人、删除时间
 - 存在全局开关和局部开关
 
@@ -30,7 +30,7 @@ Agent 规则：
 1. 如果项目使用逻辑删除，优先复用框架能力
 2. 如果需求是“查已删除数据”，先检查是否应局部关闭逻辑删除
 3. 不要在普通查询里反复手工拼 `deleted = 0`
-4. 不要把 `deleteChain()` 当成逻辑删除入口；需要逻辑删除语义时优先使用框架删除方法
+4. 不要把 `DeleteChain` 当成逻辑删除入口；需要逻辑删除语义时优先使用框架删除方法
 5. 实体字段已有 `@LogicDelete` / `@LogicDeleteTime` 等逻辑删除注解时，禁止通过 `@TableField` 配置 `defaultValue` / `updateDefaultValue` 等默认值相关属性
 
 ## 多租户
@@ -44,7 +44,7 @@ Agent 规则：
 
 - 围绕实体类自动注入租户条件
 - 常见于 `from`、`join`、`delete`、`update`
-- DAO 内部创建 `QueryChain` / `UpdateChain` / `DeleteChain` 时使用框架方法，减少漏传 Mapper 或实体类型的风险
+- Service 通过当前版本的 Chain 工厂绑定统一 BasicMapper 和实体类型，不增加 DAO 层
 - 租户值通常通过 `TenantContext.registerTenantGetter(...)` 获取
 
 Agent 规则：
@@ -96,7 +96,7 @@ Agent 规则：
 4. 修改时间字段优先使用 `@TableField(defaultValue = "{NOW}", updateDefaultValue = "{NOW}", updateDefaultValueFillAlways = true)`
 5. 逻辑删除字段已有逻辑删除注解时，禁止补 `@TableField` 默认值配置
 6. 普通字段无特殊语义时，不要为了声明列名机械补 `@TableField`
-7. 无特殊要求时项目必须集成 Lombok，并在实体类上优先使用 `@FieldNameConstants`
+7. 项目已使用 Lombok 时可复用 `@FieldNameConstants`；未使用时不强制添加依赖
 8. 实体类只保留数据库表字段，禁止混入非数据库表字段
 
 ## 结果映射 / 枚举展示
@@ -111,7 +111,7 @@ Agent 规则：
 6. 不要为了展示字段把实体类硬改成接口响应模型
 7. 实体类注解只能写在实体类上，禁止写在 VO、DTO、QO、Model 等其他类上
 8. VO 优先使用真实存在的结果映射注解，例如 `@ResultEntity`、`@NestedResultEntity`、`@NestedResultEntityField`、`@ResultCalcField`
-9. 注解里只要有字段依赖，优先使用 Lombok `@FieldNameConstants` 生成的 `Fields` 常量，例如 `SysUser.Fields.id`
+9. 注解涉及字段依赖时，复用项目字段常量；已使用 Lombok 时可用 `@FieldNameConstants` 生成的 `Fields`，例如 `SysUser.Fields.id`
 10. VO 中凡是不是数据库操作字段、需要忽略的字段，优先使用 `@Ignore` 或 `@Ignores`
 
 ## 修改入参 / 更新字段范围
@@ -145,7 +145,7 @@ Agent 规则：
 3. 条件对象优先声明 `@ConditionTarget`
 4. 字段条件优先使用 `@Condition`、`@Conditions`、`@ConditionGroup`
 5. `QO.where()` 中优先使用 `WhereUtil.where(this)`
-6. DAO 方法优先接收查询对象并使用 `queryChain(qo.where())`
+6. Service 接收查询对象，将 `qo.where()` 传入当前版本支持的 BasicMapper Chain 条件入口
 7. 搜索对象优先映射成条件对象
 8. 多列关键字搜索优先使用条件注解体系
 9. 多字段排序优先使用对象转排序
@@ -155,8 +155,8 @@ Agent 规则：
 13. 条件拼接默认是 `and`；调用 `.or()` 后会持续使用 `or`，需要切回时调用 `.and()`
 14. 局部 `or` 条件优先放进 `.nested(...)`，避免 `.or()` 状态影响后续外层条件
 15. 不要为动态筛选写一长串 `if`
-16. 有 DAO 层时，不要把 where 构建散落到 Service 层
-17. 有 DAO 层时，不要在 Service / Controller 手工拼 `order by`
+16. 可复用 where 条件集中在 QO 或 Service 的查询构建方法中，不增加 DAO 转发层
+17. 排序通过框架安全字段映射在 Service 中构建，不拼接客户端原始 `order by`
 18. 使用 `Methods` 风格时，优先静态导入所需方法
 19. 方法嵌套优先写成 `eq(gt(...))` 这类形式，避免混用多种调用风格
 20. QO 中凡是不是数据库操作字段、需要忽略的字段，优先使用 `@Ignore` 或 `@Ignores`

@@ -173,7 +173,7 @@
 
 AI 生成代码时：
 
-- 开发环境必须启用 POJO 安全检查；测试和生产环境不要求默认开启
+- 当前 starter 支持且项目启用时，在开发环境配置 POJO 检查；测试和生产环境不默认开启
 - Spring / Spring Boot 优先使用当前 starter 支持的 `@XbatisPojoCheckScan`，生成 import 前先确认真实包名
 - Solon 优先在开发环境配置的 `mybatis.<beanName>.pojoCheck` 下声明扫描包
 - 日志排查时可按项目日志体系开启 `cn.xbatis` 的 `trace`

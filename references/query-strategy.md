@@ -11,19 +11,19 @@
 
 ## 选择顺序
 
-1. 按 id 查询单表或单表部分列：优先 DAO / Mapper 的 `getById`
+1. 按 id 查询单表或单表部分列：优先统一 Mapper 的 `getById`
 2. 按 id 查询单列值：优先 `getValueById`
-3. 常规多条件查询：优先查询对象转条件 + DAO 内部的 `queryChain(qo.where())`
+3. 常规多条件查询：优先查询对象转条件 + Service 中显式绑定实体类型的 BasicMapper Chain
 4. 如果是“先查 A，顺带带出 B”的场景：优先考虑 `@Fetch`，不要默认 join
-5. 联表 + 展示对象：优先 DAO 内部的 `queryChain() + returnType(VO.class)`
+5. 联表 + 展示对象：优先 Service 中的 `QueryChain.of(xbatisMapper, Entity.class)` 配合 `returnType(VO.class)`
 6. 极复杂表达：再考虑 SQL 模板 / 原生 SQL
 
 按 id 查询不要默认写 `QueryChain`：
 
-- 返回完整实体：`getById(id)`
-- 返回单表部分列：`getById(id, Entity::getName, Entity::getStatus)`
-- 返回一列：`getValueById(id, Entity::getName)`
-- 只有不属于上述 id 查询的场景，才进入 `queryChain()`
+- 返回完整实体：`getById(Entity.class, id)`
+- 返回单表部分列：`getById(Entity.class, id, Entity::getName, Entity::getStatus)`
+- 返回一列：`getValueById(Entity.class, id, Entity::getName)`
+- 只有不属于上述 id 查询的场景，才进入 `QueryChain.of(xbatisMapper, Entity.class)`
 
 ## QueryChain 使用规则
 
@@ -36,12 +36,11 @@
 
 旧 README 里有时写成 `cn.xbatis.core.chain.*`，生成代码时不要照抄概念包名。
 
-默认在 DAO 内创建 `QueryChain`：
+默认在 Service 内创建 `QueryChain`：
 
-- 使用 `queryChain()` / `queryChain(where)`
-- 不在 Service / Controller 中直接写 `QueryChain.of(...)`
-- 单 Mapper 项目 BaseDao 继承 `BasicDaoImpl<T, ID>`，多 Mapper 项目 BaseDao 继承 `DaoImpl<T, ID>`
-- 业务 DAO 继承项目 BaseDao，不直接到处继承框架 DAO 实现
+- 使用 `QueryChain.of(xbatisMapper, Entity.class)`，显式绑定统一 BasicMapper 和真实实体类型
+- Service 直接注入统一 Mapper；不生成 DAO、BaseDao 或 DAO 接口
+- Controller 调用 Service，不直接拼查询
 - 适合“先查 A，顺带带出 B”的场景优先考虑 `@Fetch`
 - join 查询优先先 `.from(...)` 明确主表
 - join 优先使用 `leftJoin(SysUser::getRoleId, SysRole::getId)` 这类方法引用写法；第二个参数所属实体是被 join 的实体
@@ -78,12 +77,12 @@
 
 写入 Chain 最终必须通过 `execute()` 执行。
 
-如果项目有 DAO 层，Service 层不要承载数据库操作 SQL 代码：
+Service 组织持久化操作和业务事务：
 
-- 不在 Service 中创建 `QueryChain` / `UpdateChain` / `InsertChain` / `DeleteChain`
-- 不在 Service 中拼接 SQL、where、order by
-- 不在 Service 中维护 count / limit / exists SQL
-- Service 调用 DAO 方法；条件构建优先交给实现 `cn.xbatis.core.mvc.QO` 的查询对象
+- 查询与写入 Chain 由 Service 创建，BasicMapper 的工厂重载按当前版本确认
+- 可复用筛选交给实现 `cn.xbatis.core.mvc.QO` 的查询对象
+- 不手写重复的 count / limit，不拼接不受信任的 SQL 或排序片段
+- 跨多次写入需要原子性时，由外层 Service 方法统一管理事务
 
 ### 查询对象 / 对象转条件
 
@@ -99,7 +98,7 @@
 - QO 中凡是不是数据库操作字段、需要忽略的字段，优先使用 `@Ignore` 或 `@Ignores`
 - 在查询对象的 `where()` 中集中生成条件
 - 在 `where()` 中优先使用 `WhereUtil.where(this)`
-- DAO 内部优先使用 `queryChain(qo.where())`
+- Service 将 `qo.where()` 传给当前版本支持的 BasicMapper Chain 条件入口
 
 对象条件相关注解常见于 `cn.xbatis.db.annotations`。当前仓库里可核实的扩展点包括 `cn.xbatis.core.sql.ObjectConditionLifeCycle`，可在构建条件前处理 DTO 入参。
 
@@ -154,16 +153,16 @@ public class SysUserQO implements QO {
 
 ### 非搜索条件忽略
 
-无法使用 `forSearch(true)`，但仍需要按值决定是否忽略条件时，优先使用条件方法的 predicate 重载：
+无法使用 `forSearch(true)`，但仍需要按值决定是否忽略可选筛选条件时，可使用条件方法的 predicate 重载。以下 id 仅示意可选筛选；必填业务主键、租户或权限条件缺失时必须失败，不得忽略：
 
 ```java
-queryChain().eq(SysUser::getId, id, Objects::nonNull);
+QueryChain.of(xbatisMapper, SysUser.class).eq(SysUser::getId, id, Objects::nonNull);
 ```
 
 如果当前条件方法或表达方式无法使用 predicate 重载，再使用 boolean `when` 重载：
 
 ```java
-queryChain().eq(Objects.nonNull(id), SysUser::getId, id);
+QueryChain.of(xbatisMapper, SysUser.class).eq(Objects.nonNull(id), SysUser::getId, id);
 ```
 
 注意：
@@ -177,7 +176,7 @@ queryChain().eq(Objects.nonNull(id), SysUser::getId, id);
 示例：
 
 ```java
-queryChain().nested(chain -> chain.eq(SysUser::getId, id, Objects::nonNull));
+QueryChain.of(xbatisMapper, SysUser.class).nested(chain -> chain.eq(SysUser::getId, id, Objects::nonNull));
 ```
 
 ### Methods 风格
@@ -228,13 +227,13 @@ Controller / API 对外返回优先使用 VO，不建议直接返回实体类：
 - 后台管理系统的列表、详情 VO 可按项目风格考虑继承实体类
 - 非后台管理系统也建议返回 VO，避免把持久化实体直接暴露给外部接口
 - 展示型、联表型、聚合型结果优先用 VO
-- DAO 内部和纯持久化读写方法可以返回实体，但不要把实体直接穿透到接口响应
+- 内部持久化读写方法可以返回实体，但不要把实体直接穿透到接口响应
 
 Controller / API 入参优先保持可演进：
 
 - 入参超过 2 个时，使用 QO、DTO、Model 等对象接收
 - 即使当前不超过 2 个，但大概率后续会增加过滤项、分页项、排序项或业务参数，也应提前使用对象
-- Controller 接收对象后传给 Service 层，不要把多个散参继续透传到 Service / DAO
+- Controller 接收对象后传给 Service 层，不要把多个散参继续透传到 Service
 - 查询入参优先使用 QO，修改入参优先使用 Model 或项目统一的 DTO / Model 约定
 - 新增或修改用于新增、更新的 POJO 时，优先判断能否作为 xbatis Model 直接参与 `save(Model)` / `update(Model)`
 - 能通过 Model 直接写入时，不要先把 Model / DTO 手工 copy 成实体类再调用 `save` / `update`
@@ -286,9 +285,9 @@ Controller / API 入参优先保持可演进：
 8. 本可用 `.eq(field, value, Objects::nonNull)`，却在外层写一堆 `if`
 9. 需要括号包裹 `or` 条件却没有使用 `.nested(...)`
 10. 调用 `.or()` 后没有显式 `.and()` 切回，导致后续条件错误变成 OR
-11. 有 DAO 层却绕过 `queryChain()` 直接创建 `QueryChain.of(...)`
+11. BasicMapper 的 Chain 没有明确实体类型，或误用多 Mapper 的工厂重载
 12. 有查询对象却不实现 `QO`，改在 Service 中手工拼条件
-13. 有 DAO 层却把数据库操作 SQL 代码放在 Service 层
+13. 为持久化操作额外生成 DAO / BaseDao，而非在 Service 中使用 Mapper 与 Chain
 14. Controller / API 直接返回实体类，或为响应字段污染实体
 15. 本可用 `@Fetch` 的场景机械使用 join
 16. join 没有先 `.from(...)`，或继续使用旧式 / 字符串 join 写法

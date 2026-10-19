@@ -68,7 +68,7 @@ import static db.sql.api.impl.cmd.Methods.*;
 单列表达式：
 
 ```java
-QueryChain.of(sysUserMapper)
+QueryChain.of(xbatisMapper, SysUser.class)
         .select(SysUser::getId,
                 c -> fTpl("count({0})", c).as(UserStatVo::getUserCount))
         .where(SysUser::getUserName,
@@ -80,7 +80,7 @@ QueryChain.of(sysUserMapper)
 多列表达式：
 
 ```java
-QueryChain.of(sysUserMapper)
+QueryChain.of(xbatisMapper, SysUser.class)
         .select(GetterFields.of(SysUser::getScore, SysUser::getExtraScore),
                 cs -> fTpl(
                         "coalesce({0}, 0) + coalesce({1}, 0)",
@@ -94,7 +94,7 @@ QueryChain.of(sysUserMapper)
 `groupBy` / `orderBy` / `having` 中也可以使用模板：
 
 ```java
-QueryChain.of(sysUserMapper)
+QueryChain.of(xbatisMapper, SysUser.class)
         .groupBy(SysUser::getCreatedAt, c -> fTpl("date({0})", c))
         .orderBy(OrderByDirection.DESC,
                 SysUser::getScore,

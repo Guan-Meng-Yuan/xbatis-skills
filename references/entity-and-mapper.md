@@ -65,7 +65,7 @@
   - 可配置 `storey` 区分同实体多层映射，可配置 `logic` 控制默认 AND / OR 组合
 - `@Condition`
   - 用在条件对象字段上，声明 EQ、NE、IN、LIKE、BETWEEN、NULL 等条件类型
-  - 字段名不一致时配置 `property`；涉及字段引用时优先使用 Lombok `@FieldNameConstants` 生成的 `Fields` 常量
+  - 字段名不一致时配置 `property`；字段引用复用项目已有常量，已使用 Lombok 时可用 `@FieldNameConstants`
   - LIKE 场景按需配置 `likeMode`，日期结束时间按需配置 `toEndDayTime`
   - 可配置 `defaultValue`、`cast`，但不要用它替代业务层必须显式校验的入参规则
 - `@Conditions`
@@ -209,7 +209,7 @@ public enum Status implements EnumSupport<Integer> {
 
 ## Mapper 默认能力
 
-多 Mapper 模式下，一个实体通常对应一个 `MybatisMapper<T>`：
+本分支默认单 Mapper；下述多 Mapper 写法仅供已有多 Mapper 项目沿用，一个实体对应一个 `MybatisMapper<T>`：
 
 ```java
 public interface SysUserMapper extends MybatisMapper<SysUser> {
@@ -249,65 +249,17 @@ QueryChain.of(xbatisMapper, SysUser.class)
 
 ## 精准局部修改
 
-`partialUpdate(...)` 适合单条数据“先查询出来，再改部分字段”的场景。
+单条数据先查后改少量字段时，优先评估 `partialUpdate(...)`，缩小本次写入字段范围，避免全量 `update(entity)` 覆盖无关字段。
 
-```java
-SysUser sysUser = sysUserMapper.getById(id);
+- 本分支通过 Service 注入的统一 BasicMapper 调用，不新增 DAO。
+- 先用 `xbatisMapper.getById(Entity.class, id)` 获取实体并检查存在性与访问权限。
+- 按当前依赖源码核验 BasicMapper 的 `partialUpdate` 重载及回调签名；不要直接复制多 Mapper 省略实体类型的调用。
+- 需要把字段置为 `null` 时，验证所用更新 API 确实表达了置空，不能将“未提交字段”误作“清空字段”。
+- 该能力控制更新字段范围，不替代业务事务、租户隔离或并发控制。
 
-int cnt = sysUserMapper.partialUpdate(sysUser, o -> {
-    o.setUserName(updateModel.getUserName());
-    o.setMobile(updateModel.getMobile());
-});
-```
+## Service 注入约定
 
-规则：
-
-- 第一个参数传已查询出的实体对象
-- 回调里只 `set` 本次业务允许修改的字段
-- `setXxx(null)` 表示把该字段更新为数据库 `NULL`
-- 不要把全量实体直接交给 `update(entity)` 代替局部修改
-
-显式置空示例：
-
-```java
-SysUser sysUser = sysUserMapper.getById(id);
-
-int cnt = sysUserMapper.partialUpdate(sysUser, o -> {
-    o.setUserName(null);
-});
-```
-
-不推荐写法：
-
-```java
-SysUser sysUser = sysUserMapper.getById(id);
-sysUser.setUserName(updateModel.getUserName());
-sysUser.setMobile(updateModel.getMobile());
-
-sysUserMapper.update(sysUser);
-```
-
-原因：这类先查后改的单条局部更新应使用 `partialUpdate(...)` 收窄更新字段，避免普通 `update(entity)` 携带不该由当前业务修改的字段。
-
-## DAO 注入约定
-
-如果项目使用 DAO 层，先创建项目级 BaseDao：
-
-- 单 Mapper 模式：项目 BaseDao 继承 `BasicDaoImpl<T, ID>`
-- 多 Mapper 模式：项目 BaseDao 继承 `DaoImpl<T, ID>`
-- 业务 DAO 必须拆成接口和实现类
-- 业务 DAO 接口继承 `cn.xbatis.core.mvc.Dao<T, ID>`
-- 业务 DAO 实现类继承项目 BaseDao，并实现对应业务 DAO 接口
-- 不要让业务 DAO 接口继承 `cn.xbatis.core.mvc.IDao<T, ID>`
-- 项目 BaseDao 的 `setMapper(...)` 方法必须加当前容器框架的自动注入注解
-- `setMapper(...)` 内部调用父类 `setMapper(mapper)` 完成绑定
-- 业务 DAO 实现类只继承项目 BaseDao，不需要也不应重复重写 `setMapper(...)`
-- 业务 DAO 只保留有业务语义、组合查询、事务边界或复用价值的方法
-
-容器注解跟随当前项目：
-
-- Spring 项目跟随 `@Autowired`、`@Resource` 等既有规范
-- Solon 项目跟随 `@Inject`、`@Db` 等既有规范
+Service 直接注入统一的 `XbatisMapper extends BasicMapper`，不生成 DAO、BaseDao 或 DAO 接口。Spring 沿用当前项目的注入方式；Solon 按当前插件能力与项目既有规范选择 `@Db` / `@Inject`，不引入 Spring 注解。
 
 ## 写入冲突策略
 
@@ -320,7 +272,7 @@ sysUserMapper.update(sysUser);
 
 ## 生成代码时的默认选择
 
-- 除非仓库已经统一使用 `BasicMapper`，否则默认生成 `MybatisMapper<T>`
+- 新项目默认统一 `XbatisMapper extends BasicMapper`，Service 直接注入；已有多 Mapper 项目保持现状，除非用户明确要求迁移
 - 实体字段优先用注解表达映射规则，不要把映射逻辑分散到业务层
 - 默认使用 Lambda 属性引用，不写硬编码列名
 - 不知道类路径、真实类名、方法名、注解包名或泛型签名时，先用本地 xbatis 源码确认，不要猜测
