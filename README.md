@@ -40,4 +40,5 @@ Agent 会先读取 `SKILL.md`，再根据任务类型按需读取 `references/` 
 - 优先对象转条件、VO 自动映射、结果映射注解和 SQL 模板。
 - XML / 原生 SQL 只作为后置选项。
 - API 按当前解析的依赖和匹配版本源码核验，必要时才获取对应 tag / commit。
+- IDEA / JetBrains MCP 可用时，优先核验实际依赖、读取依赖源码或反编译声明，并检查和编译 Java 改动；不可用时回退构建工具与对应版本源码，详见 [IDEA 工作流](references/idea-workflow.md)。
 - Solon 使用 `app.yml` / `app-{env}.yml`，配置遵循项目格式。

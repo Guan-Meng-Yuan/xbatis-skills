@@ -19,7 +19,7 @@ description: 在已使用 xbatis，或用户明确要求接入 xbatis 的 Java �
 ## API 与版本核验
 
 1. 先检查项目构建文件及解析后的依赖，确认 xbatis、starter、容器、Java 和数据库版本。
-2. 优先使用当前依赖的 source JAR、IDE 依赖源码或缓存的对应版本源码；本地目录存在不代表版本匹配。
+2. IDEA / JetBrains MCP 可用且已打开目标业务项目时，优先获取项目加载的依赖，再搜索并读取依赖源码或反编译 class；具体流程见 [IDEA 工作流](references/idea-workflow.md)。IDEA 不可用时使用构建工具解析结果、source JAR 或缓存的对应版本源码；本地目录存在不代表版本匹配。
 3. 仅在现有资料不能确认所需 API 时，按各组件自己的依赖版本从官方仓库获取对应 tag / commit，并记录版本与来源。
 4. 源码放在临时目录或工具缓存中，不写入业务仓库。不使用默认分支的最新源码替代项目依赖版本。
 5. 无法确定版本映射、类名、包名、签名或泛型时明确说明待核实，不猜测调用，也不为迁就示例升级依赖。
@@ -36,6 +36,7 @@ description: 在已使用 xbatis，或用户明确要求接入 xbatis 的 Java �
 
 | 任务 | 参考 |
 | --- | --- |
+| 利用 IDEA 核验依赖/API、检查和编译 Java 改动、核对表结构 | [idea-workflow](references/idea-workflow.md) |
 | Spring Boot / Solon 依赖、数据源、扫描与 POJO 检查 | [environment-setup](references/environment-setup.md) |
 | BasicMapper、Service 注入、事务边界及已有多 Mapper 项目 | [mapper-modes](references/mapper-modes.md) |
 | 实体、Model、内置 Mapper、局部更新、冲突写入 | [entity-and-mapper](references/entity-and-mapper.md) |
@@ -92,5 +93,5 @@ description: 在已使用 xbatis，或用户明确要求接入 xbatis 的 Java �
 - Solon 默认配置使用 `app.yml`，环境配置使用 `app-{env}.yml`；复用嵌套 YAML 等项目格式。
 - POJO 检查仅在已核实当前 starter 支持后配置；开发环境按项目约定开启，不能把校验开关当作运行时授权或租户隔离。
 - 不在示例中硬编码真实凭证；使用环境变量或项目约定的占位符。
-- 修改后运行项目要求的构建及与行为相关的检查；涉及事务、分页、逻辑删除、租户隔离时验证对应行为。构建通过不等于业务验证通过。
+- Java 代码修改后，IDEA 可用时先检查修改文件，再编译相关模块；仍须运行项目要求的 Maven / Gradle 构建和必要行为验证，IDEA 编译不能替代打包。涉及事务、分页、逻辑删除、租户隔离时验证对应行为。纯技能文档改动检查格式与引用，不触发业务项目编译。
 - 审查先报告数据正确性、事务、安全及编译问题，避免把本技能的默认偏好当作既有代码的缺陷。
